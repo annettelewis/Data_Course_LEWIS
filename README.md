@@ -1,1 +1,1 @@
-# Data_Course_LEWIS
+This README file contains information about my uploaded assignments
