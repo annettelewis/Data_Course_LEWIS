@@ -1,0 +1,35 @@
+---
+output: 
+html_document:
+  number_sections=TRUE
+pagetitle: Assignment_4
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# **Assignment 4**
+
+In this assignment, you will describe your final project idea and data.
+
+
+## **For credit...**
+
+1.  Push all files to your github repository under the Assignment_4/ directory (txt document, fake data, example plot)
+2.  Upload your txt file (tasks 1-3) to Canvas
+
+____________
+
+
+### Tasks:
+
+1.    Create a plaintext document named "final_project_idea.txt"
+
+2.    In it, describe your idea for a data analysis final project
+
+3.    Also, Describe the sort of data you will use, potential sources, and what the data might look like
+
+4.    (If you already have data, skip this task) Create fake data that simulates what your final project data set might look like. Preferrably a csv file
+
+5.    Generate a plot (using ggplot) using either your real or fake data that shows at least one expected result
