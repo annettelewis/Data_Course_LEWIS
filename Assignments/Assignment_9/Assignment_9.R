@@ -1,0 +1,65 @@
+library(easystats)
+library(tidyverse)
+library(modelr)
+# Use the data set “/Data/GradSchool_Admissions.csv”
+df <- read.csv("../../Data/GradSchool_Admissions.csv") 
+df <- df %>% 
+  mutate(df, admit = case_when(admit == 1 ~ TRUE,
+                              TRUE ~ FALSE))
+
+# You will explore and model the predictors of graduate school admission
+mod1 <- glm(df, formula = admit ~ gpa, family = "binomial")
+mod2 <- glm(df, formula = admit ~ gpa + rank + gre, family = "binomial")
+mod3 <- glm(df, formula = admit ~ gpa * gre + rank, family = "binomial")
+mod4 <- glm(df, formula = admit ~ gpa * rank + gre, family = "binomial")
+mod5 <- glm(df, formula = admit ~ gpa * rank * gre, family = "binomial")
+
+check_model(mod1) # Is not a good fit based on the fits for residuals
+check_model(mod2) # It appears that the normality of the residuals and binned residuals don't fit well (albeit better than mod1)
+check_model(mod3) # Similar to mod2, but high collinearity
+check_model(mod4) # Still has collinearity, but a bit less than mod3
+check_model(mod5) # Extremely high collinearity (all variables)
+
+add_predictions(df, mod1, type = "response") # This model doesn't appear to be very accurate, a lot of people who have been admitted have the same prediction as someone who has not
+check <- add_predictions(df, mod2, type = "response") # Still has inaccuracies, but appears to match what is actually seen in df better than mod1 (people who were not admitted, have low predictions, generally)
+add_predictions(df, mod3, type = "response") # The prediction values were similar to that of mod3, but gives lower prediction values for those not admitted
+add_predictions(df, mod4, type = "response") # Heightened difference between prediction values ()
+add_predictions(df, mod5, type = "response") # Same deal as mod2 through mod4
+
+compare_performance(mod2,mod3,mod4,mod5, rank = TRUE) # Out of these models and the comparisons I've made above, mod2 appears to be the best
+
+   # Taking a look into mod2 (graphed)
+add_predictions(df, mod2, type = "response") %>%
+  ggplot(aes(x=gpa, y=pred, color =admit)) + 
+           geom_point(size = 3, alpha =.5)
+add_predictions(df, mod2, type = "response") %>%
+  ggplot(aes(x=gre, y=pred, color =admit)) + 
+  geom_point(size = 3, alpha =.5)
+      # This is still too inaccurate for this to be used confidently, but it's better than the other models
+add_predictions(df, mod2, type = "response") %>%
+  ggplot(aes(x=gpa, y=pred, color =admit)) + 
+  geom_point(size = 3, alpha =.5) +
+  facet_wrap(~rank) # rank one has a generally higher prediction rate 
+
+   # The graph below shows that mod2 doesn't fit very well, those who get accepted don't fall along the predicted values
+ggplot(check, aes(x = admit, y = pred, color = factor(admit))) +
+   geom_point() +
+   geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+   theme_minimal() +
+   labs(title = "Predictions vs Observations",
+        subtitle = "Dashed line indicates perfect overlap between observed values and model predictions",
+        x = "Actual Values",
+        y = "Predicted Values",
+        color = "Admit")
+ 
+mod2 %>% model_parameters() # all of the parameter estimates are statistically significant
+
+set.seed(103)
+testing <- sample(1:nrow(df), size = round(nrow(df)*.2)) 
+test <- df[testing,]
+train <- df[-testing,]
+
+mod2 <- glm(data = train,
+            formula = mod2$formula)
+rsquare(mod2,test) # test model
+rsquare(mod2, df) # full model: the R2 value is lower than the test R2 value
