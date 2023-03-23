@@ -1,28 +1,31 @@
 ---
 title: "Assignment_9"
 output: html_document
-date: "2023-03-18"
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
 ```
 
-Load in libraries
 ```{r}
 library(easystats)
 library(tidyverse)
 library(modelr)
+library(kableExtra)
 ```
 
-Use the data set “/Data/GradSchool_Admissions.csv”
+# Use the data set “/Data/GradSchool_Admissions.csv”
 ```{r}
 df <- read.csv("../../Data/GradSchool_Admissions.csv") %>% 
   mutate(admit = case_when(admit == 1 ~ TRUE,
                            TRUE ~ FALSE))
+df %>% 
+  kable() %>% 
+  kable_classic(lightable_options = 'hover') %>% 
+  scroll_box(width = "500px", height = "200px")
 ```
 
-Explore and model the predictors of graduate school admission
+# Explore and model the predictors of graduate school admission
 ```{r}
 mod1 <- glm(df, formula = admit ~ gpa, family = "binomial")
 mod2 <- glm(df, formula = admit ~ gpa + rank + gre, family = "binomial")
@@ -56,28 +59,70 @@ Mod5: Extremely high collinearity (all variables)
 check_model(mod5)
 ```
 
-Taking a look into model predictions
+# Taking a look into model predictions
+Mod1
+
 ```{r}
 pred_mod1 <- add_predictions(df, mod1, type = "response") # This model doesn't appear to be very accurate, a lot of people who have been admitted have the same prediction as someone who has not
-head(pred_mod1)
-check <- add_predictions(df, mod2, type = "response") # Still has inaccuracies, but appears to match what is actually seen in df better than mod1 (people who were not admitted, have low predictions, generally)
-head(check)
-pred_mod3 <- add_predictions(df, mod3, type = "response") # The prediction values were similar to that of mod3, but gives lower prediction values for those not admitted
-head(pred_mod3)
-pred_mod4 <- add_predictions(df, mod4, type = "response") # Heightened difference between prediction values ()
-head(pred_mod4)
-pred_mod5 <- add_predictions(df, mod5, type = "response") # Same deal as mod2 through mod4
-head(pred_mod5)
+pred_mod1 %>% 
+  kable() %>% 
+  kable_classic(lightable_options = 'hover') %>% 
+  scroll_box(width = "400px", height = "200px")
+```
 
+Mod2
+
+```{r}
+check <- add_predictions(df, mod2, type = "response") # Still has inaccuracies, but appears to match what is actually seen in df better than mod1 (people who were not admitted, have low predictions, generally)
+check %>% 
+  kable() %>% 
+  kable_classic(lightable_options = 'hover') %>% 
+  scroll_box(width = "400px", height = "200px")
+```
+
+Mod3
+
+```{r}
+pred_mod3 <- add_predictions(df, mod3, type = "response") # The prediction values were similar to that of mod3, but gives lower prediction values for those not admitted
+pred_mod3 %>% 
+  kable() %>% 
+  kable_classic(lightable_options = 'hover') %>% 
+  scroll_box(width = "400px", height = "200px")
+```
+
+Mod4
+
+```{r}
+pred_mod4 <- add_predictions(df, mod4, type = "response") # Heightened difference between prediction values ()
+pred_mod4 %>% 
+  kable() %>% 
+  kable_classic(lightable_options = 'hover') %>% 
+  scroll_box(width = "400px", height = "200px")
+```
+
+Mod5
+
+```{r}
+pred_mod5 <- add_predictions(df, mod5, type = "response") # Same deal as mod2 through mod4
+pred_mod5 %>% 
+  kable() %>% 
+  kable_classic(lightable_options = 'hover') %>% 
+  scroll_box(width = "400px", height = "200px")
+```
+
+# Comparison of models 2-5
+
+```{r}
 compare_performance(mod2,mod3,mod4,mod5, rank = TRUE) # Out of these models and the comparisons I've made above, mod2 appears to be the best
 ```
 
-Taking a look into mod2 (graphed)
+# Taking a look into mod2 (graphed)
 
 ```{r}
 add_predictions(df, mod2, type = "response") %>%
   ggplot(aes(x=gpa, y=pred, color =admit)) + 
            geom_point(size = 3, alpha =.5)
+
 add_predictions(df, mod2, type = "response") %>%
   ggplot(aes(x=gre, y=pred, color =admit)) + 
   geom_point(size = 3, alpha =.5)
@@ -105,7 +150,8 @@ train <- df[-testing,]
 mod2 <- glm(data = train,
             formula = mod2$formula)
 ```
-R2 values for the test and full model (mod2)
+
+R2 values for the test and full model (mod2) respectively
 
 ```{r}
 rsquare(mod2,test) # test model
