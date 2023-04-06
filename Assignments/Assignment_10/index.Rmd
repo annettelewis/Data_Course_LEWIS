@@ -1,0 +1,225 @@
+---
+output: 
+  html_document:
+    code_folding: hide
+    toc: yes
+    toc_float:
+      collapsed: false
+pagetitle: final_project_report
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+# Information on data:
+The following data is on New Orleans tornado building damage during December 2022. This data was obtained from Verisk Analytics and it was derived computer vision and machine learning using post-catastrophe aerial imagry data. There are approximately 42,000 buildings in this dataset. 
+
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+library(tidyverse)
+library(janitor)
+library(leaflet)
+library(easystats)
+library(modelr)
+library(ggmap)
+library(sf)
+library(GGally)
+library(plotly)
+library(kableExtra)
+library(patchwork)
+theme_set(theme_minimal())
+```
+
+# Clean data:
+
+I converted roof_solar into a T/F statement, by converting "SOLAR PANEL" to TRUE and "NO SOLAR PANEL" to FALSE. In addition to this, I converted the roof shapes that the computer wasn't very sure about (up to a 20% chance of being incorrect) into NA. There were some cells in damage_level where they were filled with an empty character, so I converted that into NA as well. I then separated longitude and latitude so that it could be easily read into leaflet. 
+
+```{r}
+df <- read.csv("clean_data.csv") %>% 
+  janitor::clean_names() %>% 
+  mutate(roofsolar = case_when(roofsolar == "SOLAR PANEL" ~ TRUE)) %>%
+  mutate(roofshape = ifelse(roofshascr < 0.80, NA, roofshape)) %>%
+  select(-c(roofshascr, roofcondit_discolordetect, roofcondit_discolorscore, roofcondit_discolorpercen, trampscr, roofcondit_tarppercen))
+
+df$rooftopgeo <- gsub("POINT \\(|\\)", "", df$rooftopgeo)
+
+df <- df %>%
+  separate(rooftopgeo, into = c("long", "lat"), sep = " ", convert = TRUE)
+
+df$damage_level <- ifelse(df$damage_level == "", NA, df$damage_level)
+```
+---
+
+```{r}
+# df %>%
+#   kable() %>%
+#   kable_classic(lightable_options = "hover") %>%
+#   scroll_box(height = "200px")
+```
+
+# Define damage categories:
+
+Catastrophe scores are separated by the summary of the dataset, excluding the catastrophe scores of 0.
+
+```{r, echo = TRUE}
+mostdamage <- df %>% filter(catastrophescore >= 50)
+# middamage <- df %>% filter(catastrophescore < 50 & catastrophescore > 25)
+# leastdamage <- df %>% filter(catastrophescore < 25 & catastrophescore != 0)
+nodamage <- df %>% filter(catastrophescore == 0)
+decimated <-df %>% filter(catastrophescore == 100)
+
+# # Might work better based on quartiles of attributes selected
+middamage <- df %>% filter(catastrophescore < 50 & catastrophescore >= 15)
+leastdamage <- df %>% filter(catastrophescore < 15 & catastrophescore >= 2)
+minimaldamage <- df %>% filter(catastrophescore == 1)
+```
+
+# Damage maps:
+
+See if there are better markers to use for this: see If i can add labels with the long, lat, roof shape, and catastrophescore.
+
+```{r}
+alldamage <- leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(lng=mostdamage$long, lat=mostdamage$lat, color = "red", radius = 2) %>%
+  addCircleMarkers(lng=middamage$long, lat=middamage$lat, color = "orange", radius = 2) %>%
+  addCircleMarkers(lng=leastdamage$long, lat=leastdamage$lat, color = "blue", radius = 2) %>%
+  addCircleMarkers(lng=nodamage$long, lat=nodamage$lat, color = "gray", radius = .5)
+alldamage
+
+# incmin <- leaflet() %>%
+#   addTiles() %>%  # Add default OpenStreetMap map tiles
+#   addCircleMarkers(lng=mostdamage$long, lat=mostdamage$lat, color = "red", radius = 2) %>%
+#   addCircleMarkers(lng=middamage$long, lat=middamage$lat, color = "orange", radius = 2) %>%
+#   addCircleMarkers(lng=leastdamage$long, lat=leastdamage$lat, color = "blue", radius = 2) %>%
+#   addCircleMarkers(lng=minimaldamage$long, lat=minimaldamage$, color = "yellow", radius = 2) %>%
+#   addCircleMarkers(lng=nodamage$long, lat=nodamage$lat, color = "gray", radius = .5)
+# incmin
+```
+
+---
+
+*These are the buildings that sustained damage*
+
+Red indicates the buildings that were the most damaged (catastrophe score >= 50), orange indicates (25 < catastrophe score < 50), blue indicates (catastrophe score <= 25, excluding scores of 0). The majority of the buildings (3852) exhibited a catastrophe score of 0.
+
+Map of the buildings that experienced damage:
+
+```{r}
+damage <- leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(lng=mostdamage$long, lat=mostdamage$lat, color = "red", radius = 2) %>% 
+  addCircleMarkers(lng=middamage$long, lat=middamage$lat, color = "orange", radius = 2) %>% 
+  addCircleMarkers(lng=leastdamage$long, lat=leastdamage$lat, color = "blue", radius = 2)
+damage
+```
+
+Map of the buildings that experienced the most damage:
+
+```{r}
+high <- leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(lng=mostdamage$long, lat=mostdamage$lat, color = "red", radius = 2)
+high
+```
+
+Map of the buildings that experienced mid damage:
+
+```{r}
+mid <- leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(lng=middamage$long, lat=middamage$lat, color = "orange", radius = 2)
+mid
+```
+
+Map of the buildings that experienced the least damage:
+
+```{r}
+least <- leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(lng=leastdamage$long, lat=leastdamage$lat, color = "blue", radius = 2)
+least
+```
+
+Map of the buildings that experienced no damage:
+
+```{r}
+none <- leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(lng=nodamage$long, lat=nodamage$lat, color = "gray", radius = .5)
+none
+```
+
+Map of the buildings that experienced no damage and the most damage:
+
+```{r}
+destroyed <- leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(lng=decimated$long, lat=decimated$lat, color = "maroon", radius = 2)
+destroyed
+```
+
+---
+
+# Models:
+
+```{r}
+mod1 <- df %>% glm(formula = catastrophescore ~ long + lat + roofshape + rooftree + roofmateri, family = "gaussian")
+mod2 <- df %>% glm(formula = catastrophescore ~ long + lat + trampoline + deck + pool + enclosure + divingboar + waterslide + playground + sportcourt + primarystr + roofsolar + rooftree + roofmateri * roofshape, family = "gaussian")
+mod3 <- df %>% glm(formula = catastrophescore ~ long + lat + enclosure + roofmateri + roofsolar + rooftree + roofshape, family = "gaussian")
+
+formula(mod1)
+formula(mod2)
+formula(mod3)
+```
+
+# Check models 
+
+Model 1
+
+```{r}
+check_model(mod1)
+```
+
+Model 2
+
+```{r}
+check_model(mod2) # the line of homogeneity of variance is kind of off
+```
+
+Model 3
+
+```{r}
+check_model(mod3)
+```
+
+
+```{r}
+# performance(mod1)
+# performance(mod2)
+# performance(mod3)
+
+compare_performance(mod1, mod2, mod3) %>% plot()
+# We want RMSE to be low and R^2 values to be high
+# AIC, AICc, and BIC (better is larger here)
+# the plot gives effectiveness (how good it can work) as what reaches out further (in this case, mod5 is best)
+# You'll never be testing more than five or six models
+
+# library(MASS) # This can still give you incorrect answers
+# step1 <- MASS::stepAIC(mod1) # model selection algorithm 
+# step2 <- MASS::stepAIC(mod2)
+# step3 <- MASS::stepAIC(mod3)
+        # this is used without even loading in this library so that it doesn't mask other useful features (if needed)
+# This can be used (step AIC) but be prepared for assumptions to be questioned
+```
+
+# Predictions:
+
+I'm planning to add predictions and additional plots for the completed final project.
+
+# Interpretations of predictions and models used:
+
+This will also be updated.
